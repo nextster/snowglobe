@@ -84,7 +84,7 @@ METAL_FUNC SDFResult ballShape(vec3 point) {
     cap.specular = 10.0;
     SDFResult ball = sphere(point, rad);
     ball.diffuse = vec3(0.00384, 0.29412, 0.4);
-    ball.uv *= 1;
+    ball.uv *= 3;
     ball.roughness = 5.0;
     return unionSDFsmooth(cap, ball, 0.003);
     return cap;
@@ -106,7 +106,7 @@ METAL_FUNC SDFResult innerScene(vec3 point) {
     
     vec3 ballPoint = point;
     ballPoint.y -= SPHERE_RAD * 0.1;
-    ballPoint.xz += SPHERE_RAD * 0.4;
+    ballPoint.xz += SPHERE_RAD * 0.35;
 //    ballPoint.z -= SPHERE_RAD * 0.25;
     SDFResult ball = ballShape(ballPoint);
     
@@ -119,6 +119,86 @@ METAL_FUNC SDFResult innerScene(vec3 point) {
 
 SDFResult sphereScene(vec3 point) {
     return sphere(point, SPHERE_RAD);
+}
+
+float unitSin(float t)
+{
+    return 0.5 + 0.5 * sin(t);
+}
+
+
+float hash(vec2 x) {
+    return hash(x.x + hash(x.y));
+}
+
+float valueNoise(vec2 p, float frequency) {
+    float bl = hash(floor(p * frequency));
+    float br = hash(floor(p * frequency + vec2(1.0, 0.0)));
+    float tl = hash(floor(p * frequency + vec2(0.0, 1.0)));
+    float tr = hash(floor(p * frequency + vec2(1.0, 1.0)));
+    
+    vec2 fractPos = fract(p * frequency);
+    float smoothX = (3.0 - 2.0 * fractPos.x) * fractPos.x * fractPos.x;
+    float bottom = mix(bl, br, smoothX);
+    float top = mix(tl, tr, smoothX);
+    return mix(bottom, top, (3.0 - 2.0 * fractPos.y) * fractPos.y * fractPos.y);
+}
+
+float valueNoise(vec3 p, float frequency) {
+    float bl = hash(floor(p.xy * frequency));
+    float br = hash(floor(p.xy * frequency + vec2(1.0, 0.0)));
+    float tl = hash(floor(p.xy * frequency + vec2(0.0, 1.0)));
+    float tr = hash(floor(p.xy * frequency + vec2(1.0, 1.0)));
+    
+    vec2 fractPos = fract(p.xy * frequency);
+    float smoothX = (3.0 - 2.0 * fractPos.x) * fractPos.x * fractPos.x;
+    float bottom = mix(bl, br, smoothX);
+    float top = mix(tl, tr, smoothX);
+    float xyNoise = mix(bottom, top, (3.0 - 2.0 * fractPos.y) * fractPos.y * fractPos.y);
+    
+    bl = hash(floor(p.yz * frequency));
+    br = hash(floor(p.yz * frequency + vec2(1.0, 0.0)));
+    tl = hash(floor(p.yz * frequency + vec2(0.0, 1.0)));
+    tr = hash(floor(p.yz * frequency + vec2(1.0, 1.0)));
+    
+    fractPos = fract(p.yz * frequency);
+    smoothX = (3.0 - 2.0 * fractPos.x) * fractPos.x * fractPos.x;
+    bottom = mix(bl, br, smoothX);
+    top = mix(tl, tr, smoothX);
+    float yzNoise = mix(bottom, top, (3.0 - 2.0 * fractPos.y) * fractPos.y * fractPos.y);
+    
+    bl = hash(floor(p.zx * frequency));
+    br = hash(floor(p.zx * frequency + vec2(1.0, 0.0)));
+    tl = hash(floor(p.zx * frequency + vec2(0.0, 1.0)));
+    tr = hash(floor(p.zx * frequency + vec2(1.0, 1.0)));
+    
+    fractPos = fract(p.zx * frequency);
+    smoothX = (3.0 - 2.0 * fractPos.x) * fractPos.x * fractPos.x;
+    bottom = mix(bl, br, smoothX);
+    top = mix(tl, tr, smoothX);
+    float zxNoise = mix(bottom, top, (3.0 - 2.0 * fractPos.y) * fractPos.y * fractPos.y);
+    
+    return (xyNoise + yzNoise + zxNoise) / 3.0;
+}
+
+vec4 generateStars(vec3 ray) {
+    vec2 uv = ray.xy;
+    
+    if (abs(ray.x) > 0.5)
+        uv.x = ray.z;
+    else if (abs(ray.y) > 0.5)
+        uv.y = ray.z;
+    float brightness = valueNoise(uv * 3.0, 100.0);
+    float colorFactor = valueNoise(uv * 2.0, 20.0);
+    brightness = pow(brightness, 256.0) * 100.0;
+    brightness = clamp(brightness, 0.0, 1.0);
+    
+    vec3 starsColor = brightness * mix(
+                                       vec3(1.0, 0.6, 0.2),
+                                       vec3(0.2, 0.6, 1.0),
+                                       colorFactor
+                                       );
+    return vec4(starsColor, 1.0);
 }
 
 vec4 background(vec3 rayDir) {
@@ -135,7 +215,6 @@ float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
         // Apply the Schlick approximation formula
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
-
 
 kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
 //                       texture2d<float, access::sample> background [[texture(1)]],
@@ -161,19 +240,20 @@ kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
         Ray refractedRay = { sphereIntersection.yzw, refractedRayDir };
         vec3 lightDir = normalize(vec3(cos(-uniforms.time * 3), 0.5, sin(-uniforms.time * 3)));
 
-        vec4 refractedColor = raymarch(refractedRay, maxDist, uniforms.time * 3, innerScene);
+        vec4 refractedColor = raymarch(refractedRay, cam, uniforms.time * 3, innerScene);
         if (refractedColor.a == 0.0) {
 //            Ray refractAgain = refractedRay;
 //            refractAgain.dir = refract(refractAgain.dir, -normal, 1/1.333);
-            refractedColor = background(refractedColor.rgb);
+            refractedColor = generateStars(refractedColor.rgb);
         }
         float fresnel = calculateFresnel(normal, -ray.dir, 0.25);
-        float specular = calculateReflection(sphereIntersection.yzw, lightDir, cam, normal, 30);
+        float specular = calculateReflection(sphereIntersection.yzw, lightDir, cam, normal, 50);
         specular = saturate(specular);
         refractedColor += specular * fresnel;
         output.write(refractedColor, gid);
     } else {
-        output.write(background(ray.dir), gid);
+        vec4 bg = generateStars(ray.dir);
+        output.write(bg, gid);
         // output.write(background.sample(s, uv), gid);
     }
 

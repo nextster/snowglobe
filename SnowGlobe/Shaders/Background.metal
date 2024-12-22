@@ -6,6 +6,11 @@
 
 using namespace metal;
 
+float chessPattern(float2 uv, float size) {
+    return fmod(floor(uv.x * size) + floor(uv.y * size), 2.0);
+}
+
+
 kernel void background(texture2d<float, access::write> output [[texture(0)]],
                          constant Uniforms & uniforms [[ buffer(0) ]],
                          uint2 gid [[thread_position_in_grid]]) {
@@ -17,7 +22,7 @@ kernel void background(texture2d<float, access::write> output [[texture(0)]],
     
 //    float2 center = float2(0.5, 0.5);
 //    float2 vec = uv - center;
-    vec4 outputColor = (fmod(floor(uv.x * 8.0) + floor(uv.y * 8.0), 2.0) == 0) ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 outputColor = chessPattern(uv, 10);
 
     output.write(outputColor, gid);
 }

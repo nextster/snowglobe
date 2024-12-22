@@ -1,10 +1,3 @@
-//
-//  SDF+Lighting.h
-//  SnowGlobe
-//
-//  Created by Артём on 22.12.2024.
-//
-
 #ifndef Common_Functions_h
 #define Common_Functions_h
 

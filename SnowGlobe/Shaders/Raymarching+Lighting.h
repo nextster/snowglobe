@@ -1,10 +1,3 @@
-//
-//  SDF+Lighting.h
-//  SnowGlobe
-//
-//  Created by Артём on 22.12.2024.
-//
-
 #ifndef Raymarchin_Lighting_h
 #define Raymarchin_Lighting_h
 
@@ -133,13 +126,13 @@ METAL_FUNC vec4 rayIntersection(Ray ray, float maxDist, SDFResult (*sdfScene)(ve
     return vec4(sdf.distance, ray.origin);
 }
 
-METAL_FUNC vec4 raymarch(Ray ray, float maxDist, float time, SDFResult (*sdfScene)(vec3)) {
+METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, float time, SDFResult (*sdfScene)(vec3)) {
     SDFResult sdf;
     
     for (int i = 0; i < MAX_STEPS; i++) {
         sdf = sdfScene(ray.origin);
         if (sdf.distance < DISTANCE_THRESHOLD) { break; }
-        if (sdf.distance > maxDist) { break; }
+        if (sdf.distance > length(cam)) { break; }
         ray.origin += ray.dir * sdf.distance;
     }
     

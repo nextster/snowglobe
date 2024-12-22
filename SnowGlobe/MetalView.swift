@@ -98,20 +98,20 @@ class MetalView: MTKView, MTKViewDelegate {
             }
         }
         
-//        let bgCommand = buf.makeComputeCommandEncoder()!
-//        bgCommand.setComputePipelineState(backgroundPipelineState)
-//        bgCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
-//        bgCommand.setTexture(backTexture, index: 0)
-//        runDispatch(bgCommand)
-//        bgCommand.endEncoding()
+        let bgCommand = buf.makeComputeCommandEncoder()!
+        bgCommand.setComputePipelineState(backgroundPipelineState)
+        bgCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
+        bgCommand.setTexture(drawable.texture, index: 0)
+        runDispatch(bgCommand)
+        bgCommand.endEncoding()
 
-        let sphereCommand = buf.makeComputeCommandEncoder()!
-        sphereCommand.setComputePipelineState(spherePipelineState)
-        sphereCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
-        sphereCommand.setTexture(drawable.texture, index: 0)
-//        sphereCommand.setTexture(backTexture, index: 1)
-        runDispatch(sphereCommand)
-        sphereCommand.endEncoding()
+//        let sphereCommand = buf.makeComputeCommandEncoder()!
+//        sphereCommand.setComputePipelineState(spherePipelineState)
+//        sphereCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
+//        sphereCommand.setTexture(drawable.texture, index: 0)
+////        sphereCommand.setTexture(backTexture, index: 1)
+//        runDispatch(sphereCommand)
+//        sphereCommand.endEncoding()
 
         buf.present(drawable)
         buf.commit()
