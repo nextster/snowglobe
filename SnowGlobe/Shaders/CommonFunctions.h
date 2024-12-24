@@ -13,6 +13,7 @@ METAL_FUNC float2 squarifyUV(float2 uv, float aspect) {
     uv.y += 0.5;
     return uv;
 }
+
 /* discontinuous pseudorandom uniformly distributed in [-0.5, +0.5]^3 */
 vec3 random3(vec3 c) {
     float j = 4096.0*sin(dot(c,vec3(17.0, 59.4, 15.0)));

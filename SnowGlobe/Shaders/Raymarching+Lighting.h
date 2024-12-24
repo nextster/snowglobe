@@ -24,7 +24,7 @@ METAL_FUNC vec3 calculateNormal(vec3 point, SDFResult (*sdfScene)(vec3)) {
                             k.yxy * sdfScene(point + k.yxy * h).distance +
                             k.xxx * sdfScene(point + k.xxx * h).distance);
     if (res.uv.x > 0.0 || res.uv.y > 0.0) {
-        normal += fbm(res.uv * 200) * 0.1 * res.roughness;
+//        normal += fbm(res.uv * 200) * 0.1 * res.roughness;
         normal = normalize(normal);
     }
     return normal;
@@ -92,7 +92,15 @@ METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, SDFResult (*
     float shading = (ambient * ao + diffuse * shadow);
     float reflection = calculateReflection(point, lightDir, cam, normal, sdf.specular);
     
-    vec3 color = sdf.diffuse * shading + reflection * (shadow - 0.1);;
+    vec3 color;
+    color = normal;
+//    color = ambient;
+//    color = diffuse;
+//    color = shadow;
+//    color = ao;
+//    color = shading + reflection * (shadow - 0.1);
+//    color = vec3(0,0,1) * shading + reflection * (shadow - 0.1);
+//    color = sdf.diffuse * shading + reflection * (shadow - 0.1);
     
     return color;
 }
@@ -129,15 +137,6 @@ METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, float time, SDFResult (*sdfScene)(ve
     
     for (int i = 0; i < MAX_STEPS; i++) {
         sdf = sdfScene(ray.origin);
-//        vec3 snowPoint = ray.origin + vec3(0, 0.000, 0) + fbm(ray.origin.xz * 10) * 0.05 * vec3(0,1,0);
-//        SDFResult snow = sdfScene(snowPoint);
-//        if (snow.distance < sdf.distance) {
-//            vec3 snowNorm = calculateNormal(snowPoint, sdfScene);
-//            if (dot(snowNorm, vec3(0,1,0)) < -0.5) {
-//                sdf = snow;
-//                sdf.diffuse = vec3(1);
-//            }
-//        }
         
         if (sdf.distance < DISTANCE_THRESHOLD) { break; }
         if (sdf.distance > length(cam)) { break; }
