@@ -137,13 +137,6 @@ METAL_FUNC vec4 background(vec3 ray) {
     return vec4(starsColor, 1.0);
 }
 
-METAL_FUNC float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
-        // Compute the cosine of the angle between the normal and the view direction
-    float cosTheta = clamp(dot(normalize(normal), normalize(viewDir)), 0.0, 1.0);
-        // Apply the Schlick approximation formula
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
 kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
                          constant Uniforms & uniforms [[ buffer(0) ]],
                          uint2 gid [[thread_position_in_grid]]) {
@@ -154,8 +147,7 @@ kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
     uv = squarifyUV(uv, uniforms.aspect);
     vec3 cam = vec3(sin(uniforms.time), -0.25, cos(uniforms.time));
     Ray ray = castRay(uv, cam);
-    float maxDist = length(cam);
-    vec4 sphereIntersection = rayIntersection(ray, maxDist, sphereScene);
+    vec4 sphereIntersection = rayIntersection(ray, cam, sphereScene);
     
     if (sphereIntersection.x < DISTANCE_THRESHOLD) {
         vec3 normal = calculateNormal(sphereIntersection.yzw, sphereScene);
@@ -163,17 +155,18 @@ kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
         Ray refractedRay;
         refractedRay = ray;
 //        refractedRay = { sphereIntersection.yzw, refractedRayDir };
-        vec3 lightDir = normalize(vec3(cos(-uniforms.time * 3), 0.5, sin(-uniforms.time * 3)));
+        float lightTime = -uniforms.time * 3;
+        vec3 lightDir = normalize(vec3(cos(lightTime), -0.5, sin(lightTime)));
 
-        vec4 innerSceneColor = raymarch(refractedRay, maxDist, uniforms.time * 3, innerScene);
-        if (innerSceneColor.a == 0.0) {
-            innerSceneColor = background(innerSceneColor.rgb);
+        vec4 sphereColor = raymarch(refractedRay, cam, lightDir, innerScene);
+        if (sphereColor.a == 0.0) {
+            sphereColor = background(sphereColor.rgb);
         }
-        float fresnel = calculateFresnel(normal, -ray.dir, 0.25);
-        float specular = calculateReflection(sphereIntersection.yzw, lightDir, cam, normal, 50);
-        specular = saturate(specular);
-//        innerSceneColor += specular * fresnel;
-        output.write(innerSceneColor, gid);
+//        float fresnel = calculateFresnel(normal, -refractedRay.dir, 0.25);
+        float specular = calculateReflection(sphereIntersection.yzw, -lightDir, cam, normal, 50);
+//        specular = saturate(specular);
+        sphereColor += specular;
+        output.write(sphereColor, gid);
     } else {
         vec4 bg = background(ray.dir);
         output.write(bg, gid);

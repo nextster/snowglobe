@@ -30,8 +30,10 @@ METAL_FUNC Ray castRay(vec2 uv, vec3 cam) {
     };
 }
 
-METAL_FUNC vec4 rayIntersection(Ray ray, float maxDist, SDFResult (*sdfScene)(vec3)) {
+METAL_FUNC vec4 rayIntersection(Ray ray, vec3 cam, SDFResult (*sdfScene)(vec3)) {
     SDFResult sdf;
+    
+    float maxDist = length(cam);
     
     for (int i = 0; i < MAX_STEPS; i++) {
         sdf = sdfScene(ray.origin);
@@ -43,7 +45,7 @@ METAL_FUNC vec4 rayIntersection(Ray ray, float maxDist, SDFResult (*sdfScene)(ve
     return vec4(sdf.distance, ray.origin);
 }
 
-METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, float time, SDFResult (*sdfScene)(vec3)) {
+METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, vec3 lightDir, SDFResult (*sdfScene)(vec3)) {
     SDFResult sdf;
     
     for (int i = 0; i < MAX_STEPS; i++) {
@@ -57,7 +59,7 @@ METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, float time, SDFResult (*sdfScene)(ve
     vec4 resColor = vec4(vec3(0.0), 0.0);
     if (sdf.distance < 0.01) {
         resColor = vec4(1, 0, 0, 1);
-        resColor.rgb = calculateColor(ray.origin, sdf, ray.dir, sdfScene, time);
+        resColor.rgb = calculateColor(ray.origin, sdf, ray.dir, lightDir, sdfScene);
         resColor.a = 1;
     } else {
         resColor.rgb = normalize(ray.dir);

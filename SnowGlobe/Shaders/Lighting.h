@@ -68,20 +68,30 @@ METAL_FUNC float calculateAO(vec3 point, vec3 normal, SDFResult (*sdfScene)(vec3
     return max(0.0, 1.0 - occlusion);
 }
 
+METAL_FUNC float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
+        // Compute the cosine of the angle between the normal and the view direction
+    float cosTheta = clamp(dot(normalize(normal), normalize(viewDir)), 0.0, 1.0);
+        // Apply the Schlick approximation formula
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 METAL_FUNC float calculateReflection(vec3 point, vec3 lightDir, vec3 cam, vec3 normal, float specular) {
     vec3 viewDir = normalize(cam - point);
     vec3 reflection = reflect(viewDir, normal);
     float result = pow(max(dot(reflection, lightDir), 0.0), specular) * specular;
+    
+    float f0 = clamp(1 / specular, 0.05, 1.0);
+    float fresnel = calculateFresnel(normal, viewDir, f0);
+    result = saturate(result) * fresnel;
     return result;
 }
 
-METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, SDFResult (*sdfScene)(vec3), float time) {
-    vec3 lightDir = normalize(vec3(sin(time), -0.5, cos(time)));
+METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, vec3 lightDir, SDFResult (*sdfScene)(vec3)) {
     vec3 normal = calculateNormal(point, sdfScene);
     
-        // Base lighting calculation
+    // Base lighting calculation
     float ambient = 0.3;
-    float diffuse = max(dot(normal, lightDir), 0.0) * 2.0;
+    float diffuse = max(dot(normal, lightDir), 0.0);
     float shadow = softShadow(point, lightDir, .9, sdfScene);
     float ao = calculateAO(point, normal, sdfScene);
     float shading = (ambient * ao + diffuse * shadow);
@@ -96,7 +106,7 @@ METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, SDFResult (*
 //    color = reflection;
 //    color = shading + reflection * (shadow - 0.1);
 //    color = vec3(0,0,1) * shading + reflection * (shadow - 0.1);
-//    color = sdf.diffuse * shading + reflection * (shadow - 0.1);
+    color = sdf.diffuse * shading + reflection * (shadow - 0.1);
     
     return color;
 }
