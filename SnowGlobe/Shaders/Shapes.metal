@@ -125,7 +125,7 @@ METAL_FUNC SDFResult scene(vec3 point) {
 #define MAX_STEPS 128
 
 struct Ray {
-    vec3 origin;
+    vec3 pos;
     vec3 dir;
 };
 
@@ -138,7 +138,7 @@ METAL_FUNC Ray castRay(vec2 uv, vec3 cam) {
     rayDirection = (cameraMatrix * float4(rayDirection, 0.0)).xyz;
     
     return {
-        .origin = rayOrigin,
+        .pos = rayOrigin,
         .dir = rayDirection
     };
 }
@@ -147,11 +147,11 @@ METAL_FUNC vec4 raymarch(Ray ray, vec3 cam) {
     SDFResult sdf;
     
     for (int i = 0; i < MAX_STEPS; i++) {
-        sdf = scene(ray.origin);
+        sdf = scene(ray.pos);
         
         if (sdf.distance < DISTANCE_THRESHOLD) { break; }
         if (sdf.distance > length(cam)) { break; }
-        ray.origin += ray.dir * sdf.distance;
+        ray.pos += ray.dir * sdf.distance;
     }
     
     vec4 resColor = vec4(vec3(0.0), 0.0);
