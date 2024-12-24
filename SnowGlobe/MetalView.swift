@@ -21,7 +21,7 @@ class MetalView: MTKView, MTKViewDelegate {
     override init(frame frameRect: CGRect, device: (any MTLDevice)?) {
         self.commandQueue = device!.makeCommandQueue()!
         super.init(frame: frameRect, device: device)
-        self.spherePipelineState = self.makePipelineState("glassSphere")
+        self.spherePipelineState = self.makePipelineState("drawScene")
 
         self.delegate = self
         self.framebufferOnly = false

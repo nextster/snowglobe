@@ -144,7 +144,7 @@ METAL_FUNC float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
+kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
                          constant Uniforms & uniforms [[ buffer(0) ]],
                          uint2 gid [[thread_position_in_grid]]) {
     int width = output.get_width();
