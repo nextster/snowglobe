@@ -26,9 +26,7 @@ typedef struct
 {
     float aspect;
     float time;
-//    float rad;
-//    float circleMul;
-//    float fireMul;
+    simd_float3 color;
 } Uniforms;
 
 #endif /* Shared_h */
