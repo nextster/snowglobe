@@ -12,7 +12,7 @@ using namespace metal;
 #define MAX_STEPS 128
 
 struct Ray {
-    vec3 origin;
+    vec3 pos;
     vec3 dir;
 };
 
@@ -25,7 +25,7 @@ METAL_FUNC Ray castRay(vec2 uv, vec3 cam) {
     rayDirection = (cameraMatrix * float4(rayDirection, 0.0)).xyz;
     
     return {
-        .origin = rayOrigin,
+        .pos = rayOrigin,
         .dir = rayDirection
     };
 }
@@ -36,30 +36,30 @@ METAL_FUNC vec4 rayIntersection(Ray ray, vec3 cam, SDFResult (*sdfScene)(vec3)) 
     float maxDist = length(cam);
     
     for (int i = 0; i < MAX_STEPS; i++) {
-        sdf = sdfScene(ray.origin);
+        sdf = sdfScene(ray.pos);
         if (sdf.distance < DISTANCE_THRESHOLD) { break; }
         if (sdf.distance > maxDist) { break; }
-        ray.origin += ray.dir * sdf.distance;
+        ray.pos += ray.dir * sdf.distance;
     }
     
-    return vec4(sdf.distance, ray.origin);
+    return vec4(ray.pos, sdf.distance);
 }
 
 METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, vec3 lightDir, SDFResult (*sdfScene)(vec3)) {
     SDFResult sdf;
     
     for (int i = 0; i < MAX_STEPS; i++) {
-        sdf = sdfScene(ray.origin);
+        sdf = sdfScene(ray.pos);
         
         if (sdf.distance < DISTANCE_THRESHOLD) { break; }
         if (sdf.distance > length(cam)) { break; }
-        ray.origin += ray.dir * sdf.distance;
+        ray.pos += ray.dir * sdf.distance;
     }
     
     vec4 resColor = vec4(vec3(0.0), 0.0);
     if (sdf.distance < 0.01) {
         resColor = vec4(1, 0, 0, 1);
-        resColor.rgb = calculateColor(ray.origin, sdf, ray.dir, lightDir, sdfScene);
+        resColor.rgb = calculateColor(ray.pos, sdf, cam, lightDir, sdfScene);
         resColor.a = 1;
     } else {
         resColor.rgb = normalize(ray.dir);

@@ -59,8 +59,8 @@ METAL_FUNC SDFResult treeShape(vec3 point) {
     
     SDFResult treeTopResult = unionSDF(unionSDF(c1, c2), c3);
     treeTopResult.diffuse = vec3(0.0, 0.27, 0.157);
-    treeTopResult.specular = 2;
-    treeTopResult.roughness = 0.5;
+    treeTopResult.specular = 5;
+    treeTopResult.roughness = 3;
     treeTopResult.uv *= 0.2;
     
     vec3 tp = point;
@@ -82,6 +82,7 @@ METAL_FUNC SDFResult ballShape(vec3 point) {
     SDFResult ball = sphere(point, rad);
     ball.diffuse = vec3(0.00384, 0.29412, 0.4);
     ball.uv *= 2;
+    ball.specular = 0.5;
     ball.roughness = 5.0;
     return unionSDFsmooth(cap, ball, 0.003);
     return cap;
@@ -149,9 +150,9 @@ kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
     Ray ray = castRay(uv, cam);
     vec4 sphereIntersection = rayIntersection(ray, cam, sphereScene);
     
-    if (sphereIntersection.x < DISTANCE_THRESHOLD) {
-        vec3 normal = calculateNormal(sphereIntersection.yzw, sphereScene);
-        vec3 refractedRayDir = refract(ray.dir, normal, 1 / 1.05);
+    if (sphereIntersection.w < DISTANCE_THRESHOLD) {
+        vec3 sphereNormal = normalize(sphereIntersection.xyz);
+        vec3 refractedRayDir = refract(ray.dir, sphereNormal, 1 / 1.05);
         Ray refractedRay;
         refractedRay = ray;
 //        refractedRay = { sphereIntersection.yzw, refractedRayDir };
@@ -162,14 +163,12 @@ kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
         if (sphereColor.a == 0.0) {
             sphereColor = background(sphereColor.rgb);
         }
-//        float fresnel = calculateFresnel(normal, -refractedRay.dir, 0.25);
-        float specular = calculateReflection(sphereIntersection.yzw, -lightDir, cam, normal, 50);
-//        specular = saturate(specular);
-        sphereColor += specular;
+
+        float specular = calculateReflection(sphereIntersection.xyz, lightDir, cam, sphereNormal, 50);
+//        sphereColor += specular;
         output.write(sphereColor, gid);
     } else {
         vec4 bg = background(ray.dir);
         output.write(bg, gid);
     }
-
 }

@@ -31,17 +31,18 @@ METAL_FUNC float softShadow(vec3 point, vec3 lightPos, float k, SDFResult (*sdfS
     lightDir = normalize(lightDir);
     
     float light = 1.0;
-    float eps = DISTANCE_THRESHOLD;
-    float distAlongRay = eps * 10;
+    float rad = 0.005;
+    float distAlongRay = rad * 3;
     
     for (int i = 0; i < 128; i++) {
         float3 samplePoint = point + lightDir * distAlongRay;
         float dist = sdfScene(samplePoint).distance;
         
-        light = min(light, 1.0 - (eps - dist) / eps);
+        light = clamp(light, 0.0, 1.0);
+        light = min(light, 1.0 - (rad - dist) / rad);
         
-        distAlongRay += dist * 0.3;
-        eps += dist * k;
+        distAlongRay += dist * 0.5;
+        rad += dist * k;
         
         if (distAlongRay > lightDistance) {
             break;
@@ -51,18 +52,22 @@ METAL_FUNC float softShadow(vec3 point, vec3 lightPos, float k, SDFResult (*sdfS
     return max(light, 0.0);
 }
 
-METAL_FUNC float calculateAO(vec3 point, vec3 normal, SDFResult (*sdfScene)(vec3)) {
+METAL_FUNC float calculateAO(vec3 point, vec3 normal, SDFResult (*sdfScene)(float3)) {
     float eps = 0.001;
+    
     point += normal * eps * 5.0;
     float occlusion = 0.0;
-    for (float i = 1.0; i < 16; i++) {
+    
+    for (int i = 1; i < 16; i++) {
         float d = sdfScene(point).distance;
         float coneWidth = 2.0 * eps;
-        float occlusionAmount = max(coneWidth - d, 0.);
+        float occlusionAmount = max(coneWidth - d, 0.0);
         float occlusionFactor = occlusionAmount / coneWidth;
-        occlusionFactor *= 1.0 - (i / 10.0);
+        occlusionFactor *= 1.0 - (float(i) / 10.0);
+        
         occlusion = max(occlusion, occlusionFactor);
-        eps *= 2.0;
+        
+        eps *= 1.5; // Adjust scaling for smoother results
         point += normal * eps;
     }
     return max(0.0, 1.0 - occlusion);
@@ -77,8 +82,8 @@ METAL_FUNC float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
 
 METAL_FUNC float calculateReflection(vec3 point, vec3 lightDir, vec3 cam, vec3 normal, float specular) {
     vec3 viewDir = normalize(cam - point);
-    vec3 reflection = reflect(viewDir, normal);
-    float result = pow(max(dot(reflection, lightDir), 0.0), specular) * specular;
+    vec3 reflection = reflect(-viewDir, normal);
+    float result = pow(max(dot(reflection, lightDir), 0.0), specular);
     
     float f0 = clamp(1 / specular, 0.05, 1.0);
     float fresnel = calculateFresnel(normal, viewDir, f0);
@@ -92,7 +97,7 @@ METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, vec3 lightDi
     // Base lighting calculation
     float ambient = 0.3;
     float diffuse = max(dot(normal, lightDir), 0.0);
-    float shadow = softShadow(point, lightDir, .9, sdfScene);
+    float shadow = softShadow(point, lightDir, .5, sdfScene);
     float ao = calculateAO(point, normal, sdfScene);
     float shading = (ambient * ao + diffuse * shadow);
     float reflection = calculateReflection(point, lightDir, cam, normal, sdf.specular);
@@ -105,8 +110,8 @@ METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, vec3 lightDi
 //    color = ao;
 //    color = reflection;
 //    color = shading + reflection * (shadow - 0.1);
-//    color = vec3(0,0,1) * shading + reflection * (shadow - 0.1);
-    color = sdf.diffuse * shading + reflection * (shadow - 0.1);
+//    color = vec3(0,0,1) * shading + reflection * shadow;
+//    color = sdf.diffuse * shading + reflection * shadow;
     
     return color;
 }
