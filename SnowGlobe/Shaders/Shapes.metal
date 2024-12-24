@@ -78,69 +78,41 @@ METAL_FUNC SDFResult ballShape(vec3 point) {
     cap = unionSDFsmooth(cap, cylinder(capPoint, capRad * 2, capRad * 0.3), 0.01);
     cap.diffuse = vec3(0.85);
     cap.specular = 10.0;
+    
     SDFResult ball = sphere(point, rad);
     ball.diffuse = vec3(0.00384, 0.29412, 0.4);
     ball.uv *= 2;
     ball.roughness = 5.0;
-    return unionSDFsmooth(cap, ball, 0.003);
-    return cap;
+//    return unionSDFsmooth(cap, ball, 0.003);
+    return ball;
 }
 
 // MARK: Scene
-METAL_FUNC SDFResult innerScene(vec3 point) {
+METAL_FUNC SDFResult scene(vec3 point) {
     SDFResult ground = groundShape(point);
-    vec3 giftPoint = point;
-    giftPoint.y -= SPHERE_RAD * 0.2;
-    giftPoint.x += SPHERE_RAD * 0.25;
-    giftPoint.z -= SPHERE_RAD * 0.45;
-    giftPoint.xz = rot2d(giftPoint.xz, 0.35);
-    SDFResult gift = giftShape(giftPoint);
-    
-    vec3 threePoint = point;
-    threePoint.x -= SPHERE_RAD * 0.35;
-    SDFResult tree = treeShape(threePoint);
+//    vec3 giftPoint = point;
+//    giftPoint.y -= SPHERE_RAD * 0.2;
+//    giftPoint.x += SPHERE_RAD * 0.25;
+//    giftPoint.z -= SPHERE_RAD * 0.45;
+//    giftPoint.xz = rot2d(giftPoint.xz, 0.35);
+//    SDFResult gift = giftShape(giftPoint);
+//    
+//    vec3 threePoint = point;
+//    threePoint.x -= SPHERE_RAD * 0.35;
+//    SDFResult tree = treeShape(threePoint);
     
     vec3 ballPoint = point;
-    ballPoint.y -= SPHERE_RAD * 0.1;
-    ballPoint.xz += SPHERE_RAD * 0.35;
+//    ballPoint.y -= SPHERE_RAD * 0.1;
+//    ballPoint.xz += SPHERE_RAD * 0.35;
     SDFResult ball = ballShape(ballPoint);
+    return ball;
+//    return unionSDF(ball, ground);
     
-    SDFResult result = unionSDF(ground, gift);
-    result = unionSDF(result, tree);
-    result = unionSDF(result, ball);
+//    SDFResult result = unionSDF(ground, gift);
+//    result = unionSDF(result, tree);
+//    result = unionSDF(result, ball);
 
-    return result;
-}
-
-METAL_FUNC SDFResult sphereScene(vec3 point) {
-    return sphere(point, SPHERE_RAD);
-}
-
-METAL_FUNC vec4 background(vec3 ray) {
-    vec2 uv = ray.xy;
-    
-    if (abs(ray.x) > 0.5)
-        uv.x = ray.z;
-    else if (abs(ray.y) > 0.5)
-        uv.y = ray.z;
-    float brightness = valueNoise(uv * 3.0, 100.0);
-    float colorFactor = valueNoise(uv * 2.0, 20.0);
-    brightness = pow(brightness, 256.0) * 100.0;
-    brightness = clamp(brightness, 0.0, 1.0);
-    
-    vec3 starsColor = brightness * mix(
-                                       vec3(1.0, 0.6, 0.2),
-                                       vec3(0.2, 0.6, 1.0),
-                                       colorFactor
-                                       );
-    return vec4(starsColor, 1.0);
-}
-
-METAL_FUNC float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
-        // Compute the cosine of the angle between the normal and the view direction
-    float cosTheta = clamp(dot(normalize(normal), normalize(viewDir)), 0.0, 1.0);
-        // Apply the Schlick approximation formula
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+//    return result;
 }
 
 kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
@@ -153,29 +125,6 @@ kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
     uv = squarifyUV(uv, uniforms.aspect);
     vec3 cam = vec3(sin(uniforms.time), -0.25, cos(uniforms.time));
     Ray ray = castRay(uv, cam);
-    float maxDist = length(cam);
-    vec4 sphereIntersection = rayIntersection(ray, maxDist, sphereScene);
-    
-    if (sphereIntersection.x < DISTANCE_THRESHOLD) {
-        vec3 normal = calculateNormal(sphereIntersection.yzw, sphereScene);
-        vec3 refractedRayDir = refract(ray.dir, normal, 1 / 1.05);
-        Ray refractedRay;
-        refractedRay = ray;
-//        refractedRay = { sphereIntersection.yzw, refractedRayDir };
-        vec3 lightDir = normalize(vec3(cos(-uniforms.time * 3), 0.5, sin(-uniforms.time * 3)));
-
-        vec4 innerSceneColor = raymarch(refractedRay, maxDist, uniforms.time * 3, innerScene);
-        if (innerSceneColor.a == 0.0) {
-            innerSceneColor = background(innerSceneColor.rgb);
-        }
-        float fresnel = calculateFresnel(normal, -ray.dir, 0.25);
-        float specular = calculateReflection(sphereIntersection.yzw, lightDir, cam, normal, 50);
-        specular = saturate(specular);
-//        innerSceneColor += specular * fresnel;
-        output.write(innerSceneColor, gid);
-    } else {
-        vec4 bg = background(ray.dir);
-        output.write(bg, gid);
-    }
-
+    vec4 sceneColor = raymarch(ray, cam, uniforms.time * 3, scene);
+    output.write(sceneColor, gid);
 }
