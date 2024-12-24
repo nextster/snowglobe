@@ -145,8 +145,8 @@ METAL_FUNC float calculateFresnel(vec3 normal, vec3 viewDir, float F0) {
 }
 
 kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
-                         constant Uniforms & uniforms [[ buffer(0) ]],
-                         uint2 gid [[thread_position_in_grid]]) {
+                        constant Uniforms & uniforms [[ buffer(0) ]],
+                        uint2 gid [[thread_position_in_grid]]) {
     int width = output.get_width();
     int height = output.get_height();
     float2 pos = float2(gid);
@@ -162,9 +162,9 @@ kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
         vec3 refractedRayDir = refract(ray.dir, normal, 1 / 1.05);
         Ray refractedRay;
         refractedRay = ray;
-//        refractedRay = { sphereIntersection.yzw, refractedRayDir };
+            //        refractedRay = { sphereIntersection.yzw, refractedRayDir };
         vec3 lightDir = normalize(vec3(cos(-uniforms.time * 3), 0.5, sin(-uniforms.time * 3)));
-
+        
         vec4 innerSceneColor = raymarch(refractedRay, maxDist, uniforms.time * 3, innerScene);
         if (innerSceneColor.a == 0.0) {
             innerSceneColor = background(innerSceneColor.rgb);
@@ -172,11 +172,28 @@ kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
         float fresnel = calculateFresnel(normal, -ray.dir, 0.25);
         float specular = calculateReflection(sphereIntersection.yzw, lightDir, cam, normal, 50);
         specular = saturate(specular);
-//        innerSceneColor += specular * fresnel;
+            //        innerSceneColor += specular * fresnel;
         output.write(innerSceneColor, gid);
     } else {
         vec4 bg = background(ray.dir);
         output.write(bg, gid);
     }
-
 }
+
+kernel void drawScene(texture2d<float, access::write> output [[texture(0)]],
+                        constant Uniforms & uniforms [[ buffer(0) ]],
+                        uint2 gid [[thread_position_in_grid]]) {
+    int width = output.get_width();
+    int height = output.get_height();
+    float2 pos = float2(gid);
+    float2 uv = pos / float2(width, height);
+    uv = squarifyUV(uv, uniforms.aspect);
+    vec3 cam = vec3(sin(uniforms.time), -0.25, cos(uniforms.time));
+    Ray ray = castRay(uv, cam);
+    float maxDist = length(cam);
+
+    vec4 outputColor = raymarch(ray, cam, uniforms.time, innerScene);
+    
+    output.write(outputColor, gid);
+}
+
