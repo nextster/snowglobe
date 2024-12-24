@@ -1,0 +1,68 @@
+#ifndef Raymarching_h
+#define Raymarching_h
+
+#import "CommonFunctions.h"
+#import "Lighting.h"
+
+#include <metal_stdlib>
+
+using namespace metal;
+
+#define DISTANCE_THRESHOLD 0.001
+#define MAX_STEPS 128
+
+struct Ray {
+    vec3 origin;
+    vec3 dir;
+};
+
+METAL_FUNC Ray castRay(vec2 uv, vec3 cam) {
+    vec3 rayOrigin = cam;
+    vec3 rayDirection = normalize(vec3(uv - 0.5, 1.0)); // Simple perspective projection
+    
+        // Calculate and apply camera transform in one step
+    mat4 cameraMatrix = lookAt(cam, float3(0.0), float3(0.0, 1.0, 0.0));
+    rayDirection = (cameraMatrix * float4(rayDirection, 0.0)).xyz;
+    
+    return {
+        .origin = rayOrigin,
+        .dir = rayDirection
+    };
+}
+
+METAL_FUNC vec4 rayIntersection(Ray ray, float maxDist, SDFResult (*sdfScene)(vec3)) {
+    SDFResult sdf;
+    
+    for (int i = 0; i < MAX_STEPS; i++) {
+        sdf = sdfScene(ray.origin);
+        if (sdf.distance < DISTANCE_THRESHOLD) { break; }
+        if (sdf.distance > maxDist) { break; }
+        ray.origin += ray.dir * sdf.distance;
+    }
+    
+    return vec4(sdf.distance, ray.origin);
+}
+
+METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, float time, SDFResult (*sdfScene)(vec3)) {
+    SDFResult sdf;
+    
+    for (int i = 0; i < MAX_STEPS; i++) {
+        sdf = sdfScene(ray.origin);
+        
+        if (sdf.distance < DISTANCE_THRESHOLD) { break; }
+        if (sdf.distance > length(cam)) { break; }
+        ray.origin += ray.dir * sdf.distance;
+    }
+    
+    vec4 resColor = vec4(vec3(0.0), 0.0);
+    if (sdf.distance < 0.01) {
+        resColor = vec4(1, 0, 0, 1);
+        resColor.rgb = calculateColor(ray.origin, sdf, ray.dir, sdfScene, time);
+        resColor.a = 1;
+    } else {
+        resColor.rgb = normalize(ray.dir);
+        resColor.a = 0.0;
+    }
+    return resColor;
+}
+#endif /* Raymarching_h */

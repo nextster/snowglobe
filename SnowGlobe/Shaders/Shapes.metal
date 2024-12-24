@@ -1,7 +1,8 @@
 // Including header shared between this Metal shader code and Swift/C code executing Metal API commands
 #import "Shared.h"
 #import "SDFFunctions.h"
-#import "Raymarching+Lighting.h"
+#import "Raymarching.h"
+#import "Lighting.h"
 #import "CommonFunctions.h"
 
 #include <metal_stdlib>
