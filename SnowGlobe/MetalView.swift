@@ -1,27 +1,16 @@
 import MetalKit
 
-public protocol Interpolatable {
-    static func lerp(_ l: Self, _ r: Self, _ k: Float) -> Self
-}
-
-extension Float: Interpolatable {
-    public static func lerp(_ l: Float, _ r: Float, _ k: Float) -> Float {
-        l + k * (r - l)
-    }
-}
-
 class MetalView: MTKView, MTKViewDelegate {
     var uniforms = Uniforms()
     var commandQueue: MTLCommandQueue
 
-//    let shaderLoader: ShaderReloader = ShaderLoader()
     var spherePipelineState: MTLComputePipelineState!
 
     required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override init(frame frameRect: CGRect, device: (any MTLDevice)?) {
         self.commandQueue = device!.makeCommandQueue()!
         super.init(frame: frameRect, device: device)
-        self.spherePipelineState = self.makePipelineState("glassSphere")
+        self.spherePipelineState = self.makePipelineState("shapes")
 
         self.delegate = self
         self.framebufferOnly = false

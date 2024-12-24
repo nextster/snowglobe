@@ -165,7 +165,7 @@ METAL_FUNC vec4 raymarch(Ray ray, vec3 cam) {
     return resColor;
 }
 
-kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
+kernel void shapes(texture2d<float, access::write> output [[texture(0)]],
                          constant Uniforms & uniforms [[ buffer(0) ]],
                          uint2 gid [[thread_position_in_grid]]) {
     int width = output.get_width();
