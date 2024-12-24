@@ -37,15 +37,15 @@ METAL_FUNC float softShadow(vec3 point, vec3 lightPos, float k, SDFResult (*sdfS
     
     float light = 1.0;
     float eps = DISTANCE_THRESHOLD;
-    float distAlongRay = eps * 3;
+    float distAlongRay = eps * 10;
     
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 128; i++) {
         float3 samplePoint = point + lightDir * distAlongRay;
         float dist = sdfScene(samplePoint).distance;
         
         light = min(light, 1.0 - (eps - dist) / eps);
         
-        distAlongRay += dist * 0.5;
+        distAlongRay += dist * 0.3;
         eps += dist * k;
         
         if (distAlongRay > lightDistance) {
@@ -58,7 +58,7 @@ METAL_FUNC float softShadow(vec3 point, vec3 lightPos, float k, SDFResult (*sdfS
 
 METAL_FUNC float calculateAO(vec3 point, vec3 normal, SDFResult (*sdfScene)(vec3)) {
     float eps = 0.001;
-    point += normal * eps * 2.0;
+    point += normal * eps * 5.0;
     float occlusion = 0.0;
     for (float i = 1.0; i < 16; i++) {
         float d = sdfScene(point).distance;
@@ -87,14 +87,12 @@ METAL_FUNC vec3 calculateColor(vec3 point, SDFResult sdf, vec3 cam, SDFResult (*
         // Base lighting calculation
     float ambient = 0.3;
     float diffuse = max(dot(normal, lightDir), 0.0) * 2.0;
-    float shadow = softShadow(point + normal * 0.01, lightDir, .9, sdfScene);
+    float shadow = softShadow(point, lightDir, .9, sdfScene);
     float ao = calculateAO(point, normal, sdfScene);
-    
-    vec3 color = sdf.diffuse * (ambient * ao + diffuse * shadow);
-    
+    float shading = (ambient * ao + diffuse * shadow);
     float reflection = calculateReflection(point, lightDir, cam, normal, sdf.specular);
     
-    color += reflection * (shadow - 0.1);;
+    vec3 color = sdf.diffuse * shading + reflection * (shadow - 0.1);;
     
     return color;
 }
@@ -131,6 +129,16 @@ METAL_FUNC vec4 raymarch(Ray ray, vec3 cam, float time, SDFResult (*sdfScene)(ve
     
     for (int i = 0; i < MAX_STEPS; i++) {
         sdf = sdfScene(ray.origin);
+//        vec3 snowPoint = ray.origin + vec3(0, 0.000, 0) + fbm(ray.origin.xz * 10) * 0.05 * vec3(0,1,0);
+//        SDFResult snow = sdfScene(snowPoint);
+//        if (snow.distance < sdf.distance) {
+//            vec3 snowNorm = calculateNormal(snowPoint, sdfScene);
+//            if (dot(snowNorm, vec3(0,1,0)) < -0.5) {
+//                sdf = snow;
+//                sdf.diffuse = vec3(1);
+//            }
+//        }
+        
         if (sdf.distance < DISTANCE_THRESHOLD) { break; }
         if (sdf.distance > length(cam)) { break; }
         ray.origin += ray.dir * sdf.distance;

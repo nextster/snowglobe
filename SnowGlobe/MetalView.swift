@@ -36,8 +36,6 @@ class MetalView: MTKView, MTKViewDelegate {
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         uniforms.aspect = Float(size.width / size.height)
-        uniforms.rad = 0.35
-        uniforms.circleMul = 1
         self.backTexture = self.makeTexture(size: size)
     }
 
@@ -62,20 +60,6 @@ class MetalView: MTKView, MTKViewDelegate {
     func draw(in view: MTKView) {
         uniforms.time += 1 / Float(preferredFramesPerSecond)
 
-        let deltaTime = uniforms.time - animationStartTime
-        let progress = Float(deltaTime / animationDuration)
-        if progress <= 1 {
-            let fromMul = Float.lerp(1, 0, progress)
-            let toMul = Float.lerp(0, 1, progress)
-            if currentShapeIsCircle {
-                uniforms.circleMul = toMul
-                uniforms.fireMul = fromMul
-            } else {
-                uniforms.circleMul = fromMul
-                uniforms.fireMul = toMul
-            }
-        }
-
         let buf = commandQueue.makeCommandBuffer()!
         let drawable = view.currentDrawable!
 
@@ -97,21 +81,21 @@ class MetalView: MTKView, MTKViewDelegate {
                 command.dispatchThreadgroups(threadGroupCount, threadsPerThreadgroup: threadsPerGroup)
             }
         }
-        
-        let bgCommand = buf.makeComputeCommandEncoder()!
-        bgCommand.setComputePipelineState(backgroundPipelineState)
-        bgCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
-        bgCommand.setTexture(drawable.texture, index: 0)
-        runDispatch(bgCommand)
-        bgCommand.endEncoding()
 
-//        let sphereCommand = buf.makeComputeCommandEncoder()!
-//        sphereCommand.setComputePipelineState(spherePipelineState)
-//        sphereCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
-//        sphereCommand.setTexture(drawable.texture, index: 0)
-////        sphereCommand.setTexture(backTexture, index: 1)
-//        runDispatch(sphereCommand)
-//        sphereCommand.endEncoding()
+//        let bgCommand = buf.makeComputeCommandEncoder()!
+//        bgCommand.setComputePipelineState(backgroundPipelineState)
+//        bgCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
+//        bgCommand.setTexture(drawable.texture, index: 0)
+//        runDispatch(bgCommand)
+//        bgCommand.endEncoding()
+
+        let sphereCommand = buf.makeComputeCommandEncoder()!
+        sphereCommand.setComputePipelineState(spherePipelineState)
+        sphereCommand.setBytes(&uniforms, length: MemoryLayout.size(ofValue: uniforms), index: 0)
+        sphereCommand.setTexture(drawable.texture, index: 0)
+//        sphereCommand.setTexture(backTexture, index: 1)
+        runDispatch(sphereCommand)
+        sphereCommand.endEncoding()
 
         buf.present(drawable)
         buf.commit()
