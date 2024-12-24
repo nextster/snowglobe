@@ -1,12 +1,19 @@
 // Including header shared between this Metal shader code and Swift/C code executing Metal API commands
 #import "Shared.h"
 #import "SDFFunctions.h"
-#import "Raymarching+Lighting.h"
-#import "CommonFunctions.h"
 
 #include <metal_stdlib>
 
 using namespace metal;
+
+#define SPHERE_RAD 0.4
+
+METAL_FUNC float2 squarifyUV(float2 uv, float aspect) {
+    uv.y -= 0.5;
+    uv.y /= aspect;
+    uv.y += 0.5;
+    return uv;
+}
 
 // MARK: Shapes
 METAL_FUNC SDFResult groundShape(vec3 point) {
@@ -105,14 +112,57 @@ METAL_FUNC SDFResult scene(vec3 point) {
 //    ballPoint.y -= SPHERE_RAD * 0.1;
 //    ballPoint.xz += SPHERE_RAD * 0.35;
     SDFResult ball = ballShape(ballPoint);
-    return ball;
 //    return unionSDF(ball, ground);
+    return ball;
     
 //    SDFResult result = unionSDF(ground, gift);
 //    result = unionSDF(result, tree);
 //    result = unionSDF(result, ball);
 
 //    return result;
+}
+#define DISTANCE_THRESHOLD 0.001
+#define MAX_STEPS 128
+
+struct Ray {
+    vec3 origin;
+    vec3 dir;
+};
+
+METAL_FUNC Ray castRay(vec2 uv, vec3 cam) {
+    vec3 rayOrigin = cam;
+    vec3 rayDirection = normalize(vec3(uv - 0.5, 1.0)); // Simple perspective projection
+    
+        // Calculate and apply camera transform in one step
+    mat4 cameraMatrix = lookAt(cam, float3(0.0), float3(0.0, 1.0, 0.0));
+    rayDirection = (cameraMatrix * float4(rayDirection, 0.0)).xyz;
+    
+    return {
+        .origin = rayOrigin,
+        .dir = rayDirection
+    };
+}
+
+METAL_FUNC vec4 raymarch(Ray ray, vec3 cam) {
+    SDFResult sdf;
+    
+    for (int i = 0; i < MAX_STEPS; i++) {
+        sdf = scene(ray.origin);
+        
+        if (sdf.distance < DISTANCE_THRESHOLD) { break; }
+        if (sdf.distance > length(cam)) { break; }
+        ray.origin += ray.dir * sdf.distance;
+    }
+    
+    vec4 resColor = vec4(vec3(0.0), 0.0);
+    if (sdf.distance < DISTANCE_THRESHOLD) {
+        resColor.rgb = sdf.diffuse;
+        resColor.a = 1;
+    } else {
+        resColor.rgb = normalize(ray.dir);
+        resColor.a = 0.0;
+    }
+    return resColor;
 }
 
 kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
@@ -123,8 +173,9 @@ kernel void glassSphere(texture2d<float, access::write> output [[texture(0)]],
     float2 pos = float2(gid);
     float2 uv = pos / float2(width, height);
     uv = squarifyUV(uv, uniforms.aspect);
+    
     vec3 cam = vec3(sin(uniforms.time), -0.25, cos(uniforms.time));
     Ray ray = castRay(uv, cam);
-    vec4 sceneColor = raymarch(ray, cam, uniforms.time * 3, scene);
+    vec4 sceneColor = raymarch(ray, cam);
     output.write(sceneColor, gid);
 }
